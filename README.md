@@ -1,73 +1,89 @@
-# React + TypeScript + Vite
+# Jira-style Kanban (React + TS + Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A small Jira-inspired Kanban board built with **React + TypeScript + Mantine**, including:
 
-Currently, two official plugins are available:
+- **Create tickets per column**
+  - New tickets are appended to the **bottom** of the column
+  - The **TO DO** column always shows “+ create”
+  - Other columns show “+ create” **only on hover**
+- **Drag & drop** (reorder within a column + move across columns) using **dnd-kit**
+- **Ticket card styling** with a subtle shadow (hover elevation)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Getting started
 
-## React Compiler
+Install dependencies:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Run the dev server:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+Build for production:
+
+```bash
+npm run build
+```
+
+## Project structure (key files)
+
+- `src/App.tsx`
+  - Owns the **board state**
+  - Implements dnd-kit `DndContext` handlers (`onDragStart`, `onDragEnd`)
+  - Renders a `DragOverlay` for smoother dragging
+- `src/components/Board.tsx`
+  - Layout wrapper that renders all columns
+- `src/components/Column.tsx`
+  - Renders one column header, ticket list, and inline create UI
+  - Marks the column as **droppable** (so you can drop into empty space)
+  - Wraps the list with `SortableContext` (so dnd-kit knows the ticket order)
+- `src/components/SortableTicketCard.tsx`
+  - The “behavior” wrapper that makes a ticket sortable (`useSortable`)
+  - Attaches `listeners`, `attributes`, `setNodeRef`, and applies transform/transition styles
+- `src/components/TicketCard.tsx`
+  - Presentational card UI (no drag logic inside)
+- `src/types.ts`
+  - Core types (`BoardState`, `Ticket`, `columnId`)
+
+## Data model (why the state looks like this)
+
+The board state is split into:
+
+- `ticketsById: Record<string, Ticket>`
+  - The “database” of ticket objects.
+  - Ticket content lives here (title, etc.).
+- `ticketIdsByColumnId: Record<columnId, string[]>`
+  - The ordered list of ticket ids per column.
+  - **Drag & drop only changes these arrays** (reorder/move).
+
+This separation keeps updates cheap: moving a ticket is just moving an **id**, not copying entire objects.
+
+## Drag & drop (how it works)
+
+dnd-kit is **headless**: it doesn’t move your data. It emits events, and you update state.
+
+### Key concepts
+
+- **`DndContext`**: top-level event hub for drag interactions.
+- **`SortableContext`**: tells dnd-kit “these ids are sortable, in this order”.
+- **`useSortable`**: makes one item draggable/sortable and provides:
+  - `setNodeRef` (DOM connection)
+  - `listeners`/`attributes` (drag events + a11y)
+  - `transform`/`transition` (smooth movement)
+- **Metadata (`data`)**: we store `{ type, columnId }` on:
+  - tickets → source column can be read from `active.data.current`
+  - columns/tickets → destination column can be read from `over.data.current`
+
+### “Closest drop” behavior
+
+On drop:
+- Dropping **on a ticket** inserts at that ticket’s index (closest position)
+- Dropping **on a column** (empty space) appends to the end
+
+## Notes
+
+- If TypeScript is configured with `verbatimModuleSyntax`, import types using `import type { ... }`.

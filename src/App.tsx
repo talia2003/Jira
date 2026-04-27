@@ -1,144 +1,155 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import type { BoardState, columnId } from './types'
+import { Board } from './components/Board'
 import './App.css'
+import { Box, Container, Title } from '@mantine/core'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCenter,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import { useSensor, useSensors } from '@dnd-kit/core'
+import { arrayMove } from '@dnd-kit/sortable'
+import { TicketCard } from './components/TicketCard'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [boardState, setBoardState] = useState<BoardState>(() => ({
+    columns: [
+      { id: 'todo', title: 'TO DO' },
+      { id: 'inProgress', title: 'IN PROGRESS' },
+      { id: 'review', title: 'REVIEW' },
+      { id: 'done', title: 'DONE' },
+    ],
+    ticketsById: {},
+    ticketIdsByColumnId: { todo: [], inProgress: [], review: [], done: [] },
+  }))
+
+  const [activeTicketId, setActiveTicketId] = useState<string | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  )
+
+  const createTicket = (columnId: columnId, title: string) => {
+    const trimmed = title.trim().toLowerCase()
+    if (!trimmed) return
+
+    const id = crypto.randomUUID()
+
+    setBoardState((prev) => ({
+      ...prev,
+      ticketsById: {
+        ...prev.ticketsById,
+        [id]: { id, title: trimmed },
+      },
+      ticketIdsByColumnId: {
+        ...prev.ticketIdsByColumnId,
+        [columnId]: [...prev.ticketIdsByColumnId[columnId], id],
+      },
+    }))
+  }
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+      setActiveTicketId(null)
+      if (!over) return
+
+      const activeId = String(active.id)
+      const overId = String(over.id)
+
+      if (activeId === overId) return
+
+      const activeData = active.data.current as 
+      | {type: "ticket"; columnId: columnId}
+      | undefined
+
+      const overData = over.data.current as 
+      | {type: "ticket"; columnId: columnId}
+      | {type: "column"; columnId: columnId}
+      |undefined
+
+      const fromColumnId = activeData?.columnId
+      if(!fromColumnId) return
+
+      const toColumnId = overData?.columnId
+      if(!toColumnId) return
+
+      setBoardState((prev) => {
+        const fromTickets = prev.ticketIdsByColumnId[fromColumnId]
+        const toTickets = prev.ticketIdsByColumnId[toColumnId]
+
+        const fromIndex = fromTickets.indexOf(activeId)
+        if(fromIndex === -1) return prev
+
+        let toIndex: number
+
+        if (overData?.type === "ticket"){
+          toIndex = toTickets.indexOf(overId)
+          if (toIndex === -1) toIndex = toTickets.length
+        } else{
+          toIndex = toTickets.length
+        }
+
+        if (fromColumnId === toColumnId) {
+          return {
+            ...prev,
+            ticketIdsByColumnId: {
+              ...prev.ticketIdsByColumnId,
+              [fromColumnId]: arrayMove(fromTickets, fromIndex, toIndex)
+            },
+          }
+        }
+
+        const nextFrom = fromTickets.filter((id) => id !== activeId)
+
+        const nextTo = [...toTickets]
+        nextTo.splice(toIndex, 0, activeId)
+    
+        return {
+          ...prev,
+          ticketIdsByColumnId: {
+            ...prev.ticketIdsByColumnId,
+            [fromColumnId] :nextFrom,
+            [toColumnId]: nextTo,
+          },
+        }
+      })
+  }
+
+  const handleDragStart = ({ active }: DragStartEvent) => {
+    setActiveTicketId(String(active.id))
+  }
+  
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started Talia</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+    <Box bg="white" mih="100vh" py="md">
+      <Container size="xl">
+        <Title order={3} mb="md">
+          Kanban Board
+        </Title>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveTicketId(null)}
+          >
+        <Board boardState={boardState} onCreateTicket={createTicket} />
+        <DragOverlay
+          dropAnimation={{
+            duration: 220,
+            easing: 'cubic-bezier(0.2, 0, 0, 1)',
+          }}
         >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a
-                href="https://vite.dev/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://react.dev/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a
-                href="https://github.com/vitejs/vite"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://chat.vite.dev/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://x.com/vite_js"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://bsky.app/profile/vite.dev"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+          {activeTicketId ? (
+            <TicketCard ticket={boardState.ticketsById[activeTicketId]} />
+          ) : null}
+        </DragOverlay>
+        </DndContext>
+      </Container>
+    </Box>
   )
 }
 
