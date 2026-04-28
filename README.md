@@ -81,6 +81,7 @@ dnd-kit is **headless**: it doesn’t move your data. It emits events, and you u
 ### “Closest drop” behavior
 
 On drop:
+
 - Dropping **on a ticket** inserts at that ticket’s index (closest position)
 - Dropping **on a column** (empty space) appends to the end
 

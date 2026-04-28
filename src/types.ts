@@ -1,7 +1,7 @@
-export type columnId = 'todo' | 'inProgress' | 'review' | 'done'
+export type ColumnId = 'todo' | 'inProgress' | 'review' | 'done'
 
 export type Column = {
-  id: columnId
+  id: ColumnId
   title: string
 }
 
@@ -13,5 +13,5 @@ export type Ticket = {
 export type BoardState = {
   columns: Column[]
   ticketsById: Record<string, Ticket>
-  ticketIdsByColumnId : Record<columnId, string[]>
+  ticketIdsByColumnId: Record<ColumnId, string[]>
 }

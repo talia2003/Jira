@@ -1,4 +1,4 @@
-import type { Ticket } from "../types"
+import type { Ticket } from '../types'
 import { Card, Text } from '@mantine/core'
 
 export function TicketCard({ ticket }: { ticket: Ticket }) {

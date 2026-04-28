@@ -1,14 +1,13 @@
 import '@mantine/core/styles.css'
 import { MantineProvider, createTheme } from '@mantine/core'
 import { createRoot } from 'react-dom/client'
-import './index.css'
 import App from './App.tsx'
 
 const theme = createTheme({
   fontFamily:
     'system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"',
   defaultRadius: 'sm',
-  primaryColor: 'blue',
+  primaryColor: 'gray',
   components: {
     Paper: {
       styles: {

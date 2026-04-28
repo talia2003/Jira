@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import type { BoardState, columnId } from './types'
+import type { BoardState, ColumnId } from './types'
 import { Board } from './components/Board'
-import './App.css'
 import { Box, Container, Title } from '@mantine/core'
 import {
   DndContext,
@@ -33,7 +32,7 @@ function App() {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   )
 
-  const createTicket = (columnId: columnId, title: string) => {
+  const createTicket = (columnId: ColumnId, title: string) => {
     const trimmed = title.trim().toLowerCase()
     if (!trimmed) return
 
@@ -53,75 +52,74 @@ function App() {
   }
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
-      setActiveTicketId(null)
-      if (!over) return
+    setActiveTicketId(null)
+    if (!over) return
 
-      const activeId = String(active.id)
-      const overId = String(over.id)
+    const activeId = String(active.id)
+    const overId = String(over.id)
 
-      if (activeId === overId) return
+    if (activeId === overId) return
 
-      const activeData = active.data.current as 
-      | {type: "ticket"; columnId: columnId}
+    const activeData = active.data.current as
+      | { type: 'ticket'; columnId: ColumnId }
       | undefined
 
-      const overData = over.data.current as 
-      | {type: "ticket"; columnId: columnId}
-      | {type: "column"; columnId: columnId}
-      |undefined
+    const overData = over.data.current as
+      | { type: 'ticket'; columnId: ColumnId }
+      | { type: 'column'; columnId: ColumnId }
+      | undefined
 
-      const fromColumnId = activeData?.columnId
-      if(!fromColumnId) return
+    const fromColumnId = activeData?.columnId
+    if (!fromColumnId) return
 
-      const toColumnId = overData?.columnId
-      if(!toColumnId) return
+    const toColumnId = overData?.columnId
+    if (!toColumnId) return
 
-      setBoardState((prev) => {
-        const fromTickets = prev.ticketIdsByColumnId[fromColumnId]
-        const toTickets = prev.ticketIdsByColumnId[toColumnId]
+    setBoardState((prev) => {
+      const fromTickets = prev.ticketIdsByColumnId[fromColumnId]
+      const toTickets = prev.ticketIdsByColumnId[toColumnId]
 
-        const fromIndex = fromTickets.indexOf(activeId)
-        if(fromIndex === -1) return prev
+      const fromIndex = fromTickets.indexOf(activeId)
+      if (fromIndex === -1) return prev
 
-        let toIndex: number
+      let toIndex: number
 
-        if (overData?.type === "ticket"){
-          toIndex = toTickets.indexOf(overId)
-          if (toIndex === -1) toIndex = toTickets.length
-        } else{
-          toIndex = toTickets.length
-        }
+      if (overData?.type === 'ticket') {
+        toIndex = toTickets.indexOf(overId)
+        if (toIndex === -1) toIndex = toTickets.length
+      } else {
+        toIndex = toTickets.length
+      }
 
-        if (fromColumnId === toColumnId) {
-          return {
-            ...prev,
-            ticketIdsByColumnId: {
-              ...prev.ticketIdsByColumnId,
-              [fromColumnId]: arrayMove(fromTickets, fromIndex, toIndex)
-            },
-          }
-        }
-
-        const nextFrom = fromTickets.filter((id) => id !== activeId)
-
-        const nextTo = [...toTickets]
-        nextTo.splice(toIndex, 0, activeId)
-    
+      if (fromColumnId === toColumnId) {
         return {
           ...prev,
           ticketIdsByColumnId: {
             ...prev.ticketIdsByColumnId,
-            [fromColumnId] :nextFrom,
-            [toColumnId]: nextTo,
+            [fromColumnId]: arrayMove(fromTickets, fromIndex, toIndex),
           },
         }
-      })
+      }
+
+      const nextFrom = fromTickets.filter((id) => id !== activeId)
+
+      const nextTo = [...toTickets]
+      nextTo.splice(toIndex, 0, activeId)
+
+      return {
+        ...prev,
+        ticketIdsByColumnId: {
+          ...prev.ticketIdsByColumnId,
+          [fromColumnId]: nextFrom,
+          [toColumnId]: nextTo,
+        },
+      }
+    })
   }
 
   const handleDragStart = ({ active }: DragStartEvent) => {
     setActiveTicketId(String(active.id))
   }
-  
 
   return (
     <Box bg="white" mih="100vh" py="md">
@@ -135,18 +133,18 @@ function App() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragCancel={() => setActiveTicketId(null)}
-          >
-        <Board boardState={boardState} onCreateTicket={createTicket} />
-        <DragOverlay
-          dropAnimation={{
-            duration: 220,
-            easing: 'cubic-bezier(0.2, 0, 0, 1)',
-          }}
         >
-          {activeTicketId ? (
-            <TicketCard ticket={boardState.ticketsById[activeTicketId]} />
-          ) : null}
-        </DragOverlay>
+          <Board boardState={boardState} onCreateTicket={createTicket} />
+          <DragOverlay
+            dropAnimation={{
+              duration: 220,
+              easing: 'cubic-bezier(0.2, 0, 0, 1)',
+            }}
+          >
+            {activeTicketId ? (
+              <TicketCard ticket={boardState.ticketsById[activeTicketId]} />
+            ) : null}
+          </DragOverlay>
         </DndContext>
       </Container>
     </Box>
