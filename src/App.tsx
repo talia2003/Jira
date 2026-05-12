@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { BoardState, ColumnId } from './types'
 import { Board } from './components/Board'
 import { Box, Container, Title } from '@mantine/core'
@@ -14,6 +14,8 @@ import { useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import { TicketCard } from './components/TicketCard'
 
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+
 function App() {
   const [boardState, setBoardState] = useState<BoardState>(() => ({
     columns: [
@@ -27,6 +29,15 @@ function App() {
   }))
 
   const [activeTicketId, setActiveTicketId] = useState<string | null>(null)
+  
+  const [pingResult, setPingResult] = useState<string>('loading...')
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/ping`)
+      .then((response) => response.json())
+      .then((data) => setPingResult(JSON.stringify(data)))
+      .catch((error) => setPingResult('error: ' + error.message))
+  }, [])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -127,6 +138,9 @@ function App() {
         <Title order={3} mb="md">
           Kanban Board
         </Title>
+        <Box mb="md" c="dimmed" fz="sm">
+          Ping: {pingResult}
+        </Box>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
