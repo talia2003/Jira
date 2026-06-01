@@ -19,11 +19,13 @@ export function Column({
   ticketsId,
   ticketsById,
   onCreateTicket,
+  onDeleteTicket,
 }: {
   column: ColumnType
   ticketsId: string[]
   ticketsById: Record<string, Ticket>
   onCreateTicket: (columnId: ColumnId, title: string) => void
+  onDeleteTicket?: (ticketId: string) => void
 }) {
   const [isCreating, setIsCreating] = useState(false)
   const [draftTitle, setDraftTitle] = useState('')
@@ -80,13 +82,20 @@ export function Column({
             items={ticketsId}
             strategy={verticalListSortingStrategy}
           >
-            {ticketsId.map((ticketId) => (
-              <SortableTicketCard
-                key={ticketId}
-                ticket={ticketsById[ticketId]}
-                columnId={column.id}
-              />
-            ))}
+            {ticketsId.map((ticketId) => {
+              const ticket = ticketsById[ticketId]
+              if (!ticket) return null
+              return (
+                <SortableTicketCard
+                  key={ticketId}
+                  ticket={ticket}
+                  columnId={column.id}
+                  onDeleteTicket={onDeleteTicket}
+                />
+              )
+            })}
+              
+          
           </SortableContext>
         </Stack>
       </Box>
@@ -123,7 +132,7 @@ export function Column({
             </Button>
           </Group>
         </Stack>
-      ) : column.id === 'todo' || isHovered ? (
+      ) : column.position === 0 || isHovered ? (
         <Button
           fullWidth
           variant="subtle"

@@ -1,13 +1,16 @@
-export type ColumnId = 'todo' | 'inProgress' | 'review' | 'done'
+export type ColumnId = string
 
 export type Column = {
   id: ColumnId
   title: string
+  position: number
 }
 
 export type Ticket = {
   id: string
   title: string
+  columnId: ColumnId
+  position: number
 }
 
 export type BoardState = {

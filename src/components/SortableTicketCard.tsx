@@ -7,9 +7,11 @@ import { Box } from '@mantine/core'
 export function SortableTicketCard({
   ticket,
   columnId,
+  onDeleteTicket,
 }: {
   ticket: Ticket
   columnId: ColumnId
+  onDeleteTicket?: (ticketId: string) => void
 }) {
   const {
     attributes,
@@ -35,7 +37,7 @@ export function SortableTicketCard({
       {...attributes}
       {...listeners}
     >
-      <TicketCard ticket={ticket} />
+      <TicketCard ticket={ticket} onDelete={onDeleteTicket} />
     </Box>
   )
 }
