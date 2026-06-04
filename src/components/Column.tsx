@@ -24,8 +24,8 @@ export function Column({
   column: ColumnType
   ticketsId: string[]
   ticketsById: Record<string, Ticket>
-  onCreateTicket: (columnId: ColumnId, title: string) => void
-  onDeleteTicket?: (ticketId: string) => void
+  onCreateTicket: (columnId: ColumnId, title: string) => Promise<void>
+  onDeleteTicket?: (ticketId: string) => Promise<void>
 }) {
   const [isCreating, setIsCreating] = useState(false)
   const [draftTitle, setDraftTitle] = useState('')
@@ -35,10 +35,10 @@ export function Column({
     setIsCreating(false)
     setDraftTitle('')
   }
-  const submit = () => {
+  const submit = async () => {
     const trimmed = draftTitle.trim()
     if (!trimmed) return
-    onCreateTicket(column.id, trimmed)
+    await onCreateTicket(column.id, trimmed)
     cancel()
   }
 

@@ -2,6 +2,8 @@ import { useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import type { BoardState, ColumnId } from '../types'
 import { Board } from '../components/Board'
+import { PageError } from '../components/PageError'
+import { PageLoading } from '../components/PageLoading'
 import { Box, Container, Title } from '@mantine/core'
 import {
   DndContext,
@@ -27,24 +29,27 @@ export function BoardPage() {
   const [activeTicketId, setActiveTicketId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!boardId) return
+    const id = boardId
+    if (!id) return
 
     let cancelled = false
 
-    getBoard(boardId)
-      .then((data) => {
+    async function loadBoard(fetchId: string) {
+      setLoading(true)
+      try {
+        const data = await getBoard(fetchId)
         if (cancelled) return
         setBoardState(apiToBoardState(data.columns, data.tickets))
         setError(null)
-      })
-      .catch((err) => {
+      } catch (err) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : 'Failed to load board')
-      })
-      .finally(() => {
-        if (cancelled) return
-        setLoading(false)
-      })
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void loadBoard(id)
 
     return () => {
       cancelled = true
@@ -55,7 +60,7 @@ export function BoardPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   )
 
-  const createTicket = (columnId: ColumnId, title: string) => {
+  const createTicket = async (columnId: ColumnId, title: string) => {
     if (!boardId) return
 
     const trimmed = title.trim()
@@ -81,91 +86,91 @@ export function BoardPage() {
       }
     })
 
-    createTicketApi({
-      board_id: boardId,
-      column_id: columnId,
-      title: trimmed,
-    })
-      .then(({ ticket }) => {
-        setBoardState((prev) => {
-          if (!prev) return prev
-
-          const restTickets = { ...prev.ticketsById }
-          delete restTickets[tempId]
-
-          return {
-            ...prev,
-            ticketsById: {
-              ...restTickets,
-              [ticket.id]: {
-                id: ticket.id,
-                title: ticket.title,
-                columnId: ticket.column_id,
-                position: ticket.position,
-              },
-            },
-            ticketIdsByColumnId: {
-              ...prev.ticketIdsByColumnId,
-              [columnId]: prev.ticketIdsByColumnId[columnId].map((id) =>
-                id === tempId ? ticket.id : id,
-              ),
-            },
-          }
-        })
+    try {
+      const { ticket } = await createTicketApi({
+        board_id: boardId,
+        column_id: columnId,
+        title: trimmed,
       })
-      .catch((err) => {
-        setBoardState((prev) => {
-          if (!prev) return prev
 
-          const restTickets = { ...prev.ticketsById }
-          delete restTickets[tempId]
+      setBoardState((prev) => {
+        if (!prev) return prev
 
-          return {
-            ...prev,
-            ticketsById: restTickets,
-            ticketIdsByColumnId: {
-              ...prev.ticketIdsByColumnId,
-              [columnId]: prev.ticketIdsByColumnId[columnId].filter(
-                (id) => id !== tempId,
-              ),
+        const restTickets = { ...prev.ticketsById }
+        delete restTickets[tempId]
+
+        return {
+          ...prev,
+          ticketsById: {
+            ...restTickets,
+            [ticket.id]: {
+              id: ticket.id,
+              title: ticket.title,
+              columnId: ticket.column_id,
+              position: ticket.position,
             },
-          }
-        })
-        setError(err instanceof Error ? err.message : 'Failed to create ticket')
+          },
+          ticketIdsByColumnId: {
+            ...prev.ticketIdsByColumnId,
+            [columnId]: prev.ticketIdsByColumnId[columnId].map((tid) =>
+              tid === tempId ? ticket.id : tid,
+            ),
+          },
+        }
       })
+    } catch (err) {
+      setBoardState((prev) => {
+        if (!prev) return prev
+
+        const restTickets = { ...prev.ticketsById }
+        delete restTickets[tempId]
+
+        return {
+          ...prev,
+          ticketsById: restTickets,
+          ticketIdsByColumnId: {
+            ...prev.ticketIdsByColumnId,
+            [columnId]: prev.ticketIdsByColumnId[columnId].filter(
+              (tid) => tid !== tempId,
+            ),
+          },
+        }
+      })
+      setError(err instanceof Error ? err.message : 'Failed to create ticket')
+    }
   }
 
-  const deleteTicket = (ticketId: string) => {
+  const deleteTicket = async (ticketId: string) => {
     if (!boardState) return
 
     const ticket = boardState.ticketsById[ticketId]
     if (!ticket) return
 
     const columnId = ticket.columnId
-    const snapshot = boardState
 
-    setBoardState((prev) => {
-      if (!prev) return prev
+    try {
+      await deleteTicketApi(ticketId)
 
-      const restTicket = { ...prev.ticketsById }
-      delete restTicket[ticketId]
+      setBoardState((prev) => {
+        if (!prev) return prev
 
-      return {
-        ...prev,
-        ticketsById: restTicket,
-        ticketIdsByColumnId: {
-          ...prev.ticketIdsByColumnId,
-          [columnId]: prev.ticketIdsByColumnId[columnId].filter(
-            (id) => id !== ticketId,
-          ),
-        },
-      }
-    })
+        const restTicket = { ...prev.ticketsById }
+        delete restTicket[ticketId]
 
-    deleteTicketApi(ticketId).catch((err) => {
-      setBoardState(snapshot)
+        return {
+          ...prev,
+          ticketsById: restTicket,
+          ticketIdsByColumnId: {
+            ...prev.ticketIdsByColumnId,
+            [columnId]: prev.ticketIdsByColumnId[columnId].filter(
+              (id) => id !== ticketId,
+            ),
+          },
+        }
+      })
+    } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete ticket')
-    })
+    }
   }
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
@@ -209,52 +214,70 @@ export function BoardPage() {
       toIndex = toTickets.length
     }
 
+    let nextFrom = fromTickets
+    let nextTo = toTickets
+
+    if (fromColumnId === toColumnId) {
+      nextFrom = arrayMove(fromTickets, fromIndex, toIndex)
+      nextTo = nextFrom
+    } else {
+      nextFrom = fromTickets.filter((id) => id !== activeId)
+      nextTo = [...toTickets]
+      nextTo.splice(toIndex, 0, activeId)
+    }
+
     setBoardState((prev) => {
       if (!prev) return prev
 
-      if (fromColumnId === toColumnId) {
-        return {
-          ...prev,
-          ticketsById: {
-            ...prev.ticketsById,
-            [activeId]: {
-              ...prev.ticketsById[activeId],
-              position: toIndex,
-            },
-          },
-          ticketIdsByColumnId: {
-            ...prev.ticketIdsByColumnId,
-            [fromColumnId]: arrayMove(fromTickets, fromIndex, toIndex),
-          },
+      const ticketsById = { ...prev.ticketsById }
+
+      for (const [index, id] of nextFrom.entries()) {
+        ticketsById[id] = { ...ticketsById[id], position: index }
+      }
+
+      if (fromColumnId !== toColumnId) {
+        for (const [index, id] of nextTo.entries()) {
+          ticketsById[id] = {
+            ...ticketsById[id],
+            columnId: toColumnId,
+            position: index,
+          }
         }
       }
 
-      const nextFrom = fromTickets.filter((id) => id !== activeId)
-      const nextTo = [...toTickets]
-      nextTo.splice(toIndex, 0, activeId)
-
       return {
         ...prev,
-        ticketsById: {
-          ...prev.ticketsById,
-          [activeId]: {
-            ...prev.ticketsById[activeId],
-            columnId: toColumnId,
-            position: toIndex,
-          },
-        },
+        ticketsById,
         ticketIdsByColumnId: {
           ...prev.ticketIdsByColumnId,
           [fromColumnId]: nextFrom,
-          [toColumnId]: nextTo,
+          ...(fromColumnId !== toColumnId && { [toColumnId]: nextTo }),
         },
       }
     })
 
-    updateTicket(activeId, {
-      columnId: toColumnId,
-      position: toIndex,
-    }).catch((err) => {
+    const persistOrder = async () => {
+      if (fromColumnId === toColumnId) {
+        await Promise.all(
+          nextFrom.map((id, position) => updateTicket(id, { position })),
+        )
+        return
+      }
+
+      await Promise.all([
+        ...nextFrom.map((id, position) => updateTicket(id, { position })),
+        ...nextTo.map((id, position) =>
+          updateTicket(
+            id,
+            id === activeId
+              ? { columnId: toColumnId, position }
+              : { position },
+          ),
+        ),
+      ])
+    }
+
+    void persistOrder().catch((err) => {
       setError(err instanceof Error ? err.message : 'Failed to update ticket')
     })
   }
@@ -276,28 +299,11 @@ export function BoardPage() {
   }
 
   if (loading) {
-    return (
-      <Box bg="white" mih="100vh" py="md">
-        <Container size="xl">
-          <Title order={3} mb="md">
-            Loading board...
-          </Title>
-        </Container>
-      </Box>
-    )
+    return <PageLoading message="Loading board..." />
   }
 
   if (error || !boardState) {
-    return (
-      <Box bg="white" mih="100vh" py="md">
-        <Container size="xl">
-          <Title order={3} c="red">
-            Error
-          </Title>
-          <Box c="dimmed">{error ?? 'Board not found'}</Box>
-        </Container>
-      </Box>
-    )
+    return <PageError message={error ?? 'Board not found'} />
   }
 
   return (
@@ -314,10 +320,11 @@ export function BoardPage() {
           onDragEnd={handleDragEnd}
           onDragCancel={() => setActiveTicketId(null)}
         >
-          <Board 
-          boardState={boardState} 
-          onCreateTicket={createTicket} 
-          onDeleteTicket={deleteTicket}/>
+          <Board
+            boardState={boardState}
+            onCreateTicket={createTicket}
+            onDeleteTicket={deleteTicket}
+          />
           <DragOverlay
             dropAnimation={{
               duration: 220,

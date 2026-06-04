@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Box, Button, Container, Paper, Stack, Text, Title } from '@mantine/core'
+import { PageError } from '../components/PageError'
+import { PageLoading } from '../components/PageLoading'
 import { listBoards, createBoard } from '../api/boards'
 import type { ApiBoard } from '../api/types'
 
@@ -11,12 +13,27 @@ export function HomePage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    listBoards()
-      .then((data) => setBoards(data.boards))
-      .catch((err) => {
+    let cancelled = false
+
+    async function loadBoards() {
+      try {
+        const data = await listBoards()
+        if (cancelled) return
+        setBoards(data.boards)
+        setError(null)
+      } catch (err) {
+        if (cancelled) return
         setError(err instanceof Error ? err.message : 'Failed to load boards')
-      })
-      .finally(() => setLoading(false))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void loadBoards()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const handleCreate = async () => {
@@ -32,26 +49,11 @@ export function HomePage() {
   }
 
   if (loading) {
-    return (
-      <Box bg="white" mih="100vh" py="md">
-        <Container size="sm">
-          <Title order={3}>Loading boards...</Title>
-        </Container>
-      </Box>
-    )
+    return <PageLoading message="Loading boards..." size="sm" />
   }
 
   if (error) {
-    return (
-      <Box bg="white" mih="100vh" py="md">
-        <Container size="sm">
-          <Title order={3} c="red">
-            Error
-          </Title>
-          <Text c="dimmed">{error}</Text>
-        </Container>
-      </Box>
-    )
+    return <PageError message={error} size="sm" />
   }
 
   return (

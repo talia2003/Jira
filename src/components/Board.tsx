@@ -8,8 +8,8 @@ export function Board({
   onDeleteTicket,
 }: {
   boardState: BoardState
-  onCreateTicket: (columnId: ColumnId, title: string) => void
-  onDeleteTicket?: (ticketId: string) => void
+  onCreateTicket: (columnId: ColumnId, title: string) => Promise<void>
+  onDeleteTicket?: (ticketId: string) => Promise<void>
 }) {
   return (
     <ScrollArea type="auto" offsetScrollbars>

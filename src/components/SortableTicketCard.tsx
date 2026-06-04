@@ -11,7 +11,7 @@ export function SortableTicketCard({
 }: {
   ticket: Ticket
   columnId: ColumnId
-  onDeleteTicket?: (ticketId: string) => void
+  onDeleteTicket?: (ticketId: string) => Promise<void>
 }) {
   const {
     attributes,
