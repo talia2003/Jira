@@ -5,9 +5,11 @@ import { Group, ScrollArea } from '@mantine/core'
 export function Board({
   boardState,
   onCreateTicket,
+  onDeleteTicket,
 }: {
   boardState: BoardState
-  onCreateTicket: (columnId: ColumnId, title: string) => void
+  onCreateTicket: (columnId: ColumnId, title: string) => Promise<void>
+  onDeleteTicket?: (ticketId: string) => Promise<void>
 }) {
   return (
     <ScrollArea type="auto" offsetScrollbars>
@@ -19,6 +21,7 @@ export function Board({
             ticketsId={boardState.ticketIdsByColumnId[column.id]}
             ticketsById={boardState.ticketsById}
             onCreateTicket={onCreateTicket}
+            onDeleteTicket={onDeleteTicket}
           />
         ))}
       </Group>
