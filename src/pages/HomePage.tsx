@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Box, Button, Container, Paper, Stack, Text, Title } from '@mantine/core'
 import { PageError } from '../components/PageError'
@@ -12,29 +12,26 @@ export function HomePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadBoards() {
-      try {
-        const data = await listBoards()
-        if (cancelled) return
-        setBoards(data.boards)
-        setError(null)
-      } catch (err) {
-        if (cancelled) return
-        setError(err instanceof Error ? err.message : 'Failed to load boards')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void loadBoards()
-
-    return () => {
-      cancelled = true
+  const loadBoards = useCallback(async (signal: AbortSignal) => {
+    try {
+      const data = await listBoards()
+      if (signal.aborted) return
+      setBoards(data.boards)
+      setError(null)
+    } catch (err) {
+      if (signal.aborted) return
+      setError(err instanceof Error ? err.message : 'Failed to load boards')
+    } finally {
+      if (!signal.aborted) setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void loadBoards(controller.signal)
+
+    return () => controller.abort()
+  }, [loadBoards])
 
   const handleCreate = async () => {
     const name = prompt('Enter a name for the new board')

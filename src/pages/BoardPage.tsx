@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { BoardState, ColumnId } from '../types'
 import { Board } from '../components/Board'
 import { PageError } from '../components/PageError'
@@ -28,33 +28,30 @@ export function BoardPage() {
   const [error, setError] = useState<string | null>(null)
   const [activeTicketId, setActiveTicketId] = useState<string | null>(null)
 
+  const loadBoard = useCallback(async (fetchId: string, signal: AbortSignal) => {
+    setLoading(true)
+    try {
+      const data = await getBoard(fetchId)
+      if (signal.aborted) return
+      setBoardState(apiToBoardState(data.columns, data.tickets))
+      setError(null)
+    } catch (err) {
+      if (signal.aborted) return
+      setError(err instanceof Error ? err.message : 'Failed to load board')
+    } finally {
+      if (!signal.aborted) setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     const id = boardId
     if (!id) return
 
-    let cancelled = false
+    const controller = new AbortController()
+    void loadBoard(id, controller.signal)
 
-    async function loadBoard(fetchId: string) {
-      setLoading(true)
-      try {
-        const data = await getBoard(fetchId)
-        if (cancelled) return
-        setBoardState(apiToBoardState(data.columns, data.tickets))
-        setError(null)
-      } catch (err) {
-        if (cancelled) return
-        setError(err instanceof Error ? err.message : 'Failed to load board')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void loadBoard(id)
-
-    return () => {
-      cancelled = true
-    }
-  }, [boardId])
+    return () => controller.abort()
+  }, [boardId, loadBoard])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
