@@ -43,7 +43,7 @@ export function SignUpPage() {
     }
 
     if (data.session) {
-      navigate('/')
+      navigate('/boards')
       return
     }
 

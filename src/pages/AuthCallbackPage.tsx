@@ -18,7 +18,7 @@ export function AuthCallbackPage() {
             }
 
             if (data.session) {
-                navigate("/", { replace: true });
+                navigate("/boards", { replace: true });
                 return;
             }
 

@@ -40,7 +40,7 @@ export function SignInPage() {
       return
     }
 
-    navigate('/')
+    navigate('/boards', { replace: true })
   }
 
   return (
