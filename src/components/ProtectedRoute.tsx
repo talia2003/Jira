@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { PageLoading } from './PageLoading'
 import { supabase } from '../lib/supabase'
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+/**
+ * Layout route that guards all nested child routes.
+ * Add new protected pages under the matching group in router.tsx — this file stays the same.
+ */
+export function ProtectedRoute() {
   const location = useLocation()
   const [session, setSession] = useState<Session | null | undefined>(undefined)
 
@@ -30,5 +34,5 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/sign-in" replace state={{ from: location }} />
   }
 
-  return children
+  return <Outlet />
 }
