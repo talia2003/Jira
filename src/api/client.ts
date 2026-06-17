@@ -1,5 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL
+import { supabase } from '../lib/supabase'
 
+const API_URL = import.meta.env.VITE_API_URL
 export class ApiError extends Error {
   status: number
 
@@ -11,13 +12,17 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-    const response = await fetch(`${API_URL}${path}`, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers,
-        },
-    })
+    const {data: {session}} = await supabase.auth.getSession()
+
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(options?.headers as Record<string, string> | undefined),
+    }
+    
+    if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`
+    }
+    const response = await fetch(`${API_URL}${path}`, {...options, headers})
 
     if(!response.ok) {
         const body = await response.json().catch(() => ({}))
