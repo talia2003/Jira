@@ -6,6 +6,7 @@ import { BoardPage } from './pages/BoardPage'
 import { SignInPage } from './pages/SignInPage'
 import { SignUpPage } from './pages/SignUpPage'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
+import { AppLayout } from './components/AppLayout'
 
 export const router = createBrowserRouter([
   { path: '/', element: <RootRedirect /> },
@@ -15,8 +16,13 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [
-      { path: '/boards', element: <HomePage /> },
-      { path: '/board/:boardId', element: <BoardPage /> },
+      {
+        element: <AppLayout />,
+        children: [
+          { path: '/boards', element: <HomePage /> },
+          { path: '/board/:boardId', element: <BoardPage /> },
+        ],
+      },
     ],
   },
 ])

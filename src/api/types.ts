@@ -2,6 +2,7 @@ export type ApiBoard = {
     id: string
     name: string
     created_at: string
+    owner_id: string
 }
 
 export type ApiColumn = {
